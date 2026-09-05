@@ -1,12 +1,12 @@
 """
 Distributed Component High-Throughput Traffic & Stress Testing Simulator for Icu Multimodal Early Warning Agent.
 """
-import time
 import random
 import sys
+import time
 from agents.models import SystemTaskPayload
 from agents.supervisor import SystemSupervisor
-from agents.base import PHIGuard, SecurityException, AuditLogger
+from agents.base import PHIGuard, AuditLogger, SecurityException
 
 def run_simulation(iterations: int = 100):
     print(f"Starting Distributed Component Simulation on Icu Multimodal Early Warning Agent ({iterations} tasks)...")

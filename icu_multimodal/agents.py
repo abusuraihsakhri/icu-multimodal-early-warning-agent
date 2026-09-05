@@ -3,8 +3,8 @@ Distributed Component Coordination & Executive Hierarchy for ICU-Multimodal Sent
 Domain: Critical Care AI
 """
 import uuid
-from typing import Dict, Any, List, Optional
-from .models import FrontierPayload, AgentTelemetryAlert, ExecutionStatus
+from typing import Any, Dict, List
+from .models import AgentTelemetryAlert, ExecutionStatus, FrontierPayload
 from .engine import FrontierDomainEngine
 
 

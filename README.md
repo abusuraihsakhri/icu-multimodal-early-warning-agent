@@ -1,7 +1,7 @@
-# Icu Multimodal Early Warning Agent
+# ICU Multimodal Early Warning Agent
 
-> **Domain:** Clinical Decision Support & Biomedical Computing  
-> **Reference Guidelines & Standards:** `Standard Clinical Formulations & ISO/IEC Quality Frameworks`
+> **Domain:** Clinical Decision Support & Biomedical Computing
+> **Standards:** CAP / CLSI / ISO / PhysioNet / MIMIC-IV Benchmark Standards
 
 <div align="center">
 
@@ -16,84 +16,181 @@
 
 ---
 
-## 📖 What It Does
+## Overview
 
-Icu Multimodal Early Warning Agent
-
----
-
-## ⚙️ Key Capabilities & Algorithmic Modules
-
-- **Deterministic Calculation Engine**: Strict compliance with standard reference formulations and thresholds.
-- **Risk & Urgency Classification**: Multi-tier categorization with automated clinical/operational action recommendations.
-- **Validation & Guardrails**: Rigorous input bounds checking and anomaly detection.
+ICU Multimodal Early Warning Agent is a clinical decision support system that fuses real-time waveform data with laboratory trajectories to detect patient deterioration early. It employs a multi-agent architecture with specialized workers for invariant quality control, safety escalation, and protocol conformance monitoring.
 
 ---
 
-## 💻 CLI Quickstart & Usage
+## Key Features
 
-### 1. Guided Interactive Mode
+- **Deterministic Calculation Engine**: Strict compliance with standard reference formulations and thresholds
+- **Risk & Urgency Classification**: Multi-tier categorization (ROUTINE, ELEVATED, CRITICAL_STAT) with automated clinical action recommendations
+- **Validation & Guardrails**: Rigorous input bounds checking and anomaly detection
+- **Zero-PHI Outbound Interceptor**: Active regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers
+- **Tamper-Evident HMAC-SHA256 Audit Trail**: Chained, cryptographically signed logs for every evaluation
+- **FastAPI REST API**: OpenAPI 3.1 endpoints with Prometheus telemetry (`/metrics`)
+- **Multi-Agent Architecture**: Specialized workers for QC, safety escalation, and protocol conformance
+
+---
+
+## Installation
+
+### Prerequisites
+- Python 3.9+
+- pip or uv package manager
+
+### Setup
+
 ```bash
-python cli.py
+# Clone the repository
+git clone https://github.com/abusuraihsakhri/icu-multimodal-early-warning-agent.git
+cd icu-multimodal-early-warning-agent
+
+# Install dependencies
+pip install -e .
+
+# Install with test dependencies
+pip install -e ".[test]"
+
+# Configure environment
+cp .env.example .env
+# Edit .env and set your AUDIT_SECRET_KEY
 ```
 
-### 2. Direct Parameterized Evaluation
+### Generate a Secure Audit Key
+
 ```bash
-python cli.py --task-id <value> --target <value> --primary <value> --secondary <value>
+python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-### Parameter Reference
-- `--task-id`: Specifies input measurement or parameter value.
-- `--target`: Specifies input measurement or parameter value.
-- `--primary`: Specifies input measurement or parameter value.
-- `--secondary`: Specifies input measurement or parameter value.
-- `--critical`: Specifies input measurement or parameter value.
-- `--status`: Specifies input measurement or parameter value.
-- `--input`: Specifies input measurement or parameter value.
-- `--output`: Specifies input measurement or parameter value.
+---
+
+## Usage
+
+### CLI Commands
+
+#### 1. Single Task Evaluation (Audit)
+```bash
+python cli.py audit --task-id TASK-001 --target KEY-01 --primary 28.5 --secondary 14.2 --critical --status DISCORDANT
+```
+
+#### 2. System Configuration Query (Chat)
+```bash
+python cli.py chat "What is the system status?"
+```
+
+#### 3. Batch Processing
+```bash
+python cli.py batch -i sample.csv -o results.csv
+```
+
+#### 4. Verify Audit Trail Integrity
+```bash
+python cli.py verify-audit
+```
+
+#### 5. Launch REST API Server
+```bash
+python cli.py serve --host 127.0.0.1 --port 8000
+```
+
+### REST API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Health check |
+| GET | `/metrics` | Prometheus metrics |
+| POST | `/api/audit` | Submit task for evaluation |
+| POST | `/api/chat` | System configuration query |
+| GET | `/api/audit/logs` | Retrieve audit trail |
 
 ### Input Data Schema
 
-| Field | Description | Requirement |
-|:------|:------------|:------------|
-| `task_id` | Parameter / observation metric | Required |
-| `target_identifier` | Parameter / observation metric | Required |
-| `primary_metric` | Parameter / observation metric | Required |
-| `secondary_metric` | Parameter / observation metric | Required |
-| `is_critical_flag` | Parameter / observation metric | Required |
-| `status_descriptor` | Parameter / observation metric | Required |
+| Field | Type | Description | Required |
+|:------|:-----|:------------|:---------|
+| `task_id` | string | Unique task / case identifier | Yes |
+| `target_identifier` | string | Entity, patient key, or target | Yes |
+| `primary_metric` | float | Primary domain measurement | Yes |
+| `secondary_metric` | float | Secondary kinetic/confidence score | No (default: 0.0) |
+| `status_descriptor` | string | Status code or phenotype | No (default: "NOMINAL") |
+| `is_critical_flag` | boolean | Emergency escalation trigger | No (default: false) |
 
 ---
 
-## 🛡️ Security & Enterprise Architecture
-
-* **Zero-PHI Outbound Interceptor:** Active AST and regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers.
-* **Tamper-Evident HMAC-SHA256 Audit Trail:** Chained, cryptographically signed logs for every evaluation and state transition.
-* **Air-Gapped LLM Reasoning Adapter:** Agnostic integration for local Ollama instances (`llama3`, `mistral`), Claude 3.5 Sonnet, GPT-4o, and deterministic test mocks.
-* **Active Learning Bayesian Calibration:** Dynamic tracker updating worker reliability weights and monitoring Brier calibration drift.
-* **FastAPI & Prometheus Telemetry:** Exposes OpenAPI 3.1 REST endpoints and operational Prometheus metrics (`/metrics`).
-
----
-
-## 🧪 Testing & Verification
-
-Run the automated test suite:
+## Testing
 
 ```bash
+# Run all tests
 pytest -v
+
+# Run with coverage
+pytest -v --cov=agents --cov=icu_multimodal
+
+# Run specific test file
+pytest tests/test_icu_multimodal_early_warning_agent.py -v
 ```
 
-Execute high-throughput batch simulation benchmarks:
+### Simulation Benchmark
 
 ```bash
-python simulator.py --tasks 1000 --concurrency 8
+# Run 1000-task simulation
+python simulator.py 1000
 ```
 
 ---
 
-## 🐳 Container Deployment
+## Docker Deployment
 
 ```bash
+# Build and run with Docker Compose
+export AUDIT_SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(32))")
+docker-compose up --build
+
+# Or use Docker directly
 docker build -t icu-multimodal-early-warning-agent .
-docker run -p 8000:8000 icu-multimodal-early-warning-agent
+docker run -p 8000:8000 -e AUDIT_SECRET_KEY=$AUDIT_SECRET_KEY icu-multimodal-early-warning-agent
 ```
+
+---
+
+## Architecture
+
+### Multi-Agent System (`agents/`)
+
+| Module | Purpose |
+|:-------|:--------|
+| `models.py` | Pydantic v2 data models and enumerations |
+| `base.py` | PHI guard, HMAC-SHA256 audit trail, security exceptions |
+| `workers.py` | Specialized domain workers (QC, Safety, Protocol) |
+| `supervisor.py` | Master orchestrator coordinating all workers |
+| `api.py` | FastAPI REST endpoints |
+| `llm_factory.py` | LLM provider abstraction (mock, Ollama, Claude, OpenAI) |
+| `learning.py` | Bayesian calibration and active learning |
+| `metrics.py` | Prometheus metrics exporter |
+| `streamer.py` | WebSocket telemetry broadcaster |
+
+### ICU Multimodal Module (`icu_multimodal/`)
+
+| Module | Purpose |
+|:-------|:--------|
+| `models.py` | Dataclass models for frontier payload |
+| `engine.py` | Core algorithmic evaluation engine |
+| `agents.py` | Specialized sub-agents for waveform/lab fusion |
+| `cli.py` | Command-line interface |
+| `server.py` | FastAPI server factory |
+
+---
+
+## Security
+
+- **PHI Protection**: All outbound data is inspected against HIPAA Safe Harbor patterns
+- **Audit Trail**: Cryptographic chaining prevents log tampering
+- **Secret Management**: Audit keys are never hardcoded; must be provided via environment variable
+- **Input Validation**: All inputs are validated with Pydantic models
+
+---
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.

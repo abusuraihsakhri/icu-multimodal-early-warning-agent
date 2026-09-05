@@ -3,7 +3,6 @@ Command-Line Interface for ICU-Multimodal Sentinel: Real-Time Waveform & Lab Fus
 """
 import argparse
 import csv
-import json
 import sys
 from .models import FrontierPayload
 from .agents import ICUMultimodalCoordinator

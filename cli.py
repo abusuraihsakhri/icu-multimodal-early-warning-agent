@@ -3,7 +3,6 @@ Command Line Interface for Icu Multimodal Early Warning Agent.
 """
 import argparse
 import csv
-import json
 import sys
 from agents.models import SystemTaskPayload
 from agents.supervisor import SystemSupervisor

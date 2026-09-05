@@ -1,7 +1,7 @@
 """
 FastAPI REST API Server for ICU-Multimodal Sentinel: Real-Time Waveform & Lab Fusion Agent.
 """
-from typing import Dict, Any
+from typing import Any, Dict
 from .models import FrontierPayload
 from .agents import ICUMultimodalCoordinator
 
