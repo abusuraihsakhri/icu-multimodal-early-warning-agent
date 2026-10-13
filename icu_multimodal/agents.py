@@ -3,6 +3,7 @@ Distributed Component Coordination & Executive Hierarchy for ICU-Multimodal Sent
 Domain: Critical Care AI
 """
 import uuid
+import math
 from typing import Any, Dict, List
 from .models import AgentTelemetryAlert, ExecutionStatus, FrontierPayload
 from .engine import FrontierDomainEngine
@@ -68,6 +69,8 @@ class ICUMultimodalCoordinator:
         self.execution_ledger: Dict[str, Dict[str, Any]] = {}
 
     def process(self, payload: FrontierPayload) -> Dict[str, Any]:
+        if not math.isfinite(payload.primary_metric) or not math.isfinite(payload.secondary_metric):
+            raise ValueError("Metrics must be finite numbers")
         all_alerts: List[AgentTelemetryAlert] = []
         all_alerts.extend(self.sub_1.audit(payload))
         all_alerts.extend(self.sub_2.audit(payload))

@@ -83,3 +83,11 @@ def test_csv_false_not_critical(tmp_path):
     with target.open(encoding="utf-8",newline="") as handle:
         result = list(csv.DictReader(handle))
     assert result[0]["overall_urgency"] == "ROUTINE"
+
+
+def test_legacy_coordinator_rejects_nonfinite():
+    from icu_multimodal.agents import ICUMultimodalCoordinator
+    from icu_multimodal.models import FrontierPayload
+    payload = FrontierPayload("T", "KEY", float("nan"), 0.0, "NOMINAL")
+    with pytest.raises(ValueError, match="finite"):
+        ICUMultimodalCoordinator().process(payload)

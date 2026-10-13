@@ -19,6 +19,17 @@ def parse_csv_bool(value: str) -> bool:
     raise ValueError(f"Invalid critical flag: {value!r}")
 
 
+def safe_csv_cell(value):
+    if not isinstance(value, str):
+        return value
+    stripped = value.lstrip()
+    if stripped.startswith(("=", "+", "@", "\t", "\r")) or (
+        stripped.startswith("-") and not stripped[1:2].isdigit()
+    ):
+        return "'" + value
+    return value
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="icu-multimodal-early-warning-agent", description="ICU-Multimodal Sentinel: Real-Time Waveform & Lab Fusion Agent")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -103,7 +114,7 @@ def main(argv=None):
             row_dict["total_alerts"] = dossier["total_alerts"]
             row_dict["critical_count"] = dossier["critical_count"]
             row_dict["consensus_summary"] = dossier["consensus_summary"]
-            out_rows.append(row_dict)
+            out_rows.append({key: safe_csv_cell(value) for key, value in row_dict.items()})
 
         with open(args.output, mode="w", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=out_fields)
