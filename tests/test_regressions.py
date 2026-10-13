@@ -91,3 +91,12 @@ def test_legacy_coordinator_rejects_nonfinite():
     payload = FrontierPayload("T", "KEY", float("nan"), 0.0, "NOMINAL")
     with pytest.raises(ValueError, match="finite"):
         ICUMultimodalCoordinator().process(payload)
+
+
+def test_concurrent_audit_chaining():
+    from concurrent.futures import ThreadPoolExecutor
+    trail = AuditTrail(secret_key="concurrent-test-key")
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(lambda n: trail.log("worker", "test", "EVENT", {"number": n}), range(200)))
+    assert len(trail.get_trail()) == 200
+    assert trail.verify_integrity()
