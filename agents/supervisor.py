@@ -3,7 +3,10 @@ Supervisor Orchestrator & Operations Intelligence for Icu Multimodal Early Warni
 Domain: Clinical & Biomedical AI
 """
 import uuid
+import json
+import time
 from typing import Dict, List
+from .metrics import GLOBAL_METRICS
 from .base import AuditLogger, PHIGuard
 from .models import SystemTaskPayload, AgentAlert, ConsensusDossier, UrgencyLevel, SystemIntegrityStatus
 from .workers import InvariantQCWorker, SafetyEscalationWorker, ProtocolConformanceWorker
@@ -21,10 +24,13 @@ class SystemSupervisor:
         self.dossier_registry: Dict[str, ConsensusDossier] = {}
 
     def process_task(self, payload: SystemTaskPayload, actor: str = "SystemSupervisor") -> ConsensusDossier:
-        # Zero-PHI outbound validation
+        started_at = time.perf_counter()
+        # Best-effort identifier screening; regex checks are not comprehensive de-identification.
         PHIGuard.assert_no_phi(payload.task_id)
         PHIGuard.assert_no_phi(payload.target_identifier)
         PHIGuard.assert_no_phi(payload.status_descriptor)
+        PHIGuard.assert_no_phi(json.dumps(payload.attributes, ensure_ascii=False))
+        PHIGuard.assert_no_phi(actor)
 
         # Multi-worker evaluations
         all_alerts: List[AgentAlert] = []
@@ -71,6 +77,7 @@ class SystemSupervisor:
         )
 
         self.dossier_registry[dossier.dossier_id] = dossier
+        GLOBAL_METRICS.record_task(overall_urgency.value, time.perf_counter() - started_at)
         return dossier
 
     def query_supervisory_chat(self, query: str) -> str:

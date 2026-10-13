@@ -26,15 +26,22 @@ dependencies = [
 [project.optional-dependencies]
 test = [
     "pytest>=7.0",
+    "httpx>=0.27",
 ]
 
 [project.scripts]
 icu-multimodal-early-warning-engine = "cli:main"
 
 [project.urls]
-Homepage = "https://github.com/abusuraihsakhri/icu-multimodal-early-warning-engine"
-Repository = "https://github.com/abusuraihsakhri/icu-multimodal-early-warning-engine.git"
+Homepage = "https://github.com/abusuraihsakhri/icu-multimodal-early-warning-agent"
+Repository = "https://github.com/abusuraihsakhri/icu-multimodal-early-warning-agent.git"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.setuptools]
+py-modules = ["cli", "enrichment", "simulator", "icu_multimodal_app"]
+
+[tool.setuptools.packages.find]
+include = ["agents*", "icu_multimodal*"]

@@ -1,196 +1,78 @@
 # ICU Multimodal Early Warning Agent
 
-> **Domain:** Clinical Decision Support & Biomedical Computing
-> **Standards:** CAP / CLSI / ISO / PhysioNet / MIMIC-IV Benchmark Standards
+A Python threshold-classification prototype with a browser-only demonstration. It evaluates two **unitless example metrics**, a descriptor, and an optional manual critical flag. Outputs are deterministic alerts, **not clinically validated early-warning scores**.
 
-<div align="center">
+> **Research/educational software only.** The repository does not ingest raw ICU waveforms, calculate laboratory trajectories, implement a trained deterioration predictor, or provide validated clinical recommendations. Do not use for patient care.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688.svg?logo=fastapi&logoColor=white)
-![Audit Trail](https://img.shields.io/badge/Audit-HMAC--SHA256_Tamper--Evident-brightgreen.svg)
-![Zero-PHI Guard](https://img.shields.io/badge/Guard-Zero--PHI_Outbound-blue.svg)
-![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)
+## Implemented components
 
-</div>
+- **agents/** — main CLI and FastAPI service. Alerts when primary >25, secondary >12, critical override is selected, or the descriptor contains DISCORDANT, ANOMALY, MUTANT, VIOLATION, FAIL, or REJECT. Critical override takes precedence.
+- **icu_multimodal/** — separate legacy example with secondary threshold >10. It is not identical to the main service.
+- **enrichment.py** — generic threshold classes, not clinically validated ventilation, vasopressor, sepsis, nutrition, or sedation algorithms.
+- **web/** — static JavaScript implementation of the main three-worker rule set. No Python service, clinical prediction, audit signing, or backend calls occur on the page.
 
----
+No external language-model provider is implemented. The chat command returns a deterministic mock response.
 
-## Overview
+## Browser demonstration
 
-ICU Multimodal Early Warning Agent is a clinical decision support system that fuses real-time waveform data with laboratory trajectories to detect patient deterioration early. It employs a multi-agent architecture with specialized workers for invariant quality control, safety escalation, and protocol conformance monitoring.
+Open web/index.html locally. Enter **synthetic**, non-identifying sample keys and metrics, select **Evaluate example**, and optionally export a JSON result. Nothing entered is uploaded or persisted by the static app. It is not a PHI de-identification service.
 
----
+## Install and run Python
 
-## Key Features
+Python 3.10–3.12 is tested in CI (package metadata supports 3.9+).
 
-- **Deterministic Calculation Engine**: Strict compliance with standard reference formulations and thresholds
-- **Risk & Urgency Classification**: Multi-tier categorization (ROUTINE, ELEVATED, CRITICAL_STAT) with automated clinical action recommendations
-- **Validation & Guardrails**: Rigorous input bounds checking and anomaly detection
-- **Zero-PHI Outbound Interceptor**: Active regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers
-- **Tamper-Evident HMAC-SHA256 Audit Trail**: Chained, cryptographically signed logs for every evaluation
-- **FastAPI REST API**: OpenAPI 3.1 endpoints with Prometheus telemetry (`/metrics`)
-- **Multi-Agent Architecture**: Specialized workers for QC, safety escalation, and protocol conformance
+    git clone https://github.com/abusuraihsakhri/icu-multimodal-early-warning-agent.git
+    cd icu-multimodal-early-warning-agent
+    python -m pip install -e ".[test]"
+    export AUDIT_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
 
----
+Generate a unique audit secret for each deployment. Python reads environment variables directly; it does not automatically load .env files.
 
-## Installation
+    python cli.py audit --task-id DEMO-1 --target SYNTHETIC-1 --primary 28.5 --secondary 14.2
+    python cli.py batch -i sample.csv -o results.csv
+    python cli.py verify-audit
+    python cli.py chat "What is the status?"
+    python cli.py serve --host 127.0.0.1 --port 8000
 
-### Prerequisites
-- Python 3.9+
-- pip or uv package manager
+Batch CSV input includes task_id, target_identifier, primary_metric, secondary_metric, is_critical_flag, and status_descriptor. Boolean flags accept true/false, yes/no, and 1/0, case-insensitive.
 
-### Setup
+## HTTP API
 
-```bash
-# Clone the repository
-git clone https://github.com/abusuraihsakhri/icu-multimodal-early-warning-agent.git
-cd icu-multimodal-early-warning-agent
+| Method | Path | Purpose |
+|---|---|---|
+| GET | /health | Health |
+| POST | /api/audit | Evaluate synthetic inputs |
+| POST | /api/chat | Deterministic mock response |
+| GET | /metrics | Prometheus text |
+| GET | /api/audit/logs | Audit metadata, disabled without a token |
+| GET | /openapi.json | Generated OpenAPI schema |
 
-# Install dependencies
-pip install -e .
+Set a distinct, high-entropy AUDIT_LOGS_TOKEN and pass an Authorization: Bearer token header to enable audit metadata reads. The audit endpoint is disabled without this setting. Do not expose the service to untrusted networks without appropriate authentication, TLS and operational controls.
 
-# Install with test dependencies
-pip install -e ".[test]"
+## Security and privacy
 
-# Configure environment
-cp .env.example .env
-# Edit .env and set your AUDIT_SECRET_KEY
-```
+- HMAC-SHA256 signs an in-memory chain of audit metadata. The verifier checks the signatures and links; the trail is **not persistent** and disappears on restart.
+- Regex PHI screening is **incomplete** and does not demonstrate HIPAA Safe Harbor de-identification. Do not process actual patient records.
+- Evaluations are not rate-limited or authenticated by default. Use only locally or within a properly secured environment.
+- The browser demo uses only local JavaScript, DOM text nodes, and a user-triggered JSON download. It does not use network calls or browser storage.
 
-### Generate a Secure Audit Key
+## Tests
 
-```bash
-python -c "import secrets; print(secrets.token_hex(32))"
-```
+    python -m pytest -q
+    python -m compileall -q agents icu_multimodal cli.py enrichment.py
+    python -m pip check
+    node --check web/app.js
+    node --test tests/web.test.cjs
 
----
+GitHub Actions tests Python 3.10–3.12 and the browser rule set. The web demonstration requires a modern JavaScript-enabled browser. GitHub Pages can host only the static demo; the FastAPI service requires Python hosting.
 
-## Usage
+## Docker
 
-### CLI Commands
+    export AUDIT_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+    docker compose up --build
 
-#### 1. Single Task Evaluation (Audit)
-```bash
-python cli.py audit --task-id TASK-001 --target KEY-01 --primary 28.5 --secondary 14.2 --critical --status DISCORDANT
-```
-
-#### 2. System Configuration Query (Chat)
-```bash
-python cli.py chat "What is the system status?"
-```
-
-#### 3. Batch Processing
-```bash
-python cli.py batch -i sample.csv -o results.csv
-```
-
-#### 4. Verify Audit Trail Integrity
-```bash
-python cli.py verify-audit
-```
-
-#### 5. Launch REST API Server
-```bash
-python cli.py serve --host 127.0.0.1 --port 8000
-```
-
-### REST API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Health check |
-| GET | `/metrics` | Prometheus metrics |
-| POST | `/api/audit` | Submit task for evaluation |
-| POST | `/api/chat` | System configuration query |
-| GET | `/api/audit/logs` | Retrieve audit trail |
-
-### Input Data Schema
-
-| Field | Type | Description | Required |
-|:------|:-----|:------------|:---------|
-| `task_id` | string | Unique task / case identifier | Yes |
-| `target_identifier` | string | Entity, patient key, or target | Yes |
-| `primary_metric` | float | Primary domain measurement | Yes |
-| `secondary_metric` | float | Secondary kinetic/confidence score | No (default: 0.0) |
-| `status_descriptor` | string | Status code or phenotype | No (default: "NOMINAL") |
-| `is_critical_flag` | boolean | Emergency escalation trigger | No (default: false) |
-
----
-
-## Testing
-
-```bash
-# Run all tests
-pytest -v
-
-# Run with coverage
-pytest -v --cov=agents --cov=icu_multimodal
-
-# Run specific test file
-pytest tests/test_icu_multimodal_early_warning_agent.py -v
-```
-
-### Simulation Benchmark
-
-```bash
-# Run 1000-task simulation
-python simulator.py 1000
-```
-
----
-
-## Docker Deployment
-
-```bash
-# Build and run with Docker Compose
-export AUDIT_SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(32))")
-docker-compose up --build
-
-# Or use Docker directly
-docker build -t icu-multimodal-early-warning-agent .
-docker run -p 8000:8000 -e AUDIT_SECRET_KEY=$AUDIT_SECRET_KEY icu-multimodal-early-warning-agent
-```
-
----
-
-## Architecture
-
-### Multi-Agent System (`agents/`)
-
-| Module | Purpose |
-|:-------|:--------|
-| `models.py` | Pydantic v2 data models and enumerations |
-| `base.py` | PHI guard, HMAC-SHA256 audit trail, security exceptions |
-| `workers.py` | Specialized domain workers (QC, Safety, Protocol) |
-| `supervisor.py` | Master orchestrator coordinating all workers |
-| `api.py` | FastAPI REST endpoints |
-| `llm_factory.py` | LLM provider abstraction (mock, Ollama, Claude, OpenAI) |
-| `learning.py` | Bayesian calibration and active learning |
-| `metrics.py` | Prometheus metrics exporter |
-| `streamer.py` | WebSocket telemetry broadcaster |
-
-### ICU Multimodal Module (`icu_multimodal/`)
-
-| Module | Purpose |
-|:-------|:--------|
-| `models.py` | Dataclass models for frontier payload |
-| `engine.py` | Core algorithmic evaluation engine |
-| `agents.py` | Specialized sub-agents for waveform/lab fusion |
-| `cli.py` | Command-line interface |
-| `server.py` | FastAPI server factory |
-
----
-
-## Security
-
-- **PHI Protection**: All outbound data is inspected against HIPAA Safe Harbor patterns
-- **Audit Trail**: Cryptographic chaining prevents log tampering
-- **Secret Management**: Audit keys are never hardcoded; must be provided via environment variable
-- **Input Validation**: All inputs are validated with Pydantic models
-
----
+Compose binds to localhost:8000 by default.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+[MIT](LICENSE).

@@ -11,6 +11,27 @@ from agents.base import AuditLogger
 supervisor = SystemSupervisor(model_provider="mock")
 
 
+def parse_csv_bool(value: str) -> bool:
+    normalized = str(value or "").strip().lower()
+    if normalized in ("1", "true", "yes", "y", "on"):
+        return True
+    if normalized in ("0", "false", "no", "n", "off", ""):
+        return False
+    raise ValueError(f"Invalid critical flag: {value!r}; expected true or false")
+
+
+def safe_csv_cell(value):
+    """Neutralize spreadsheet formulas in untrusted text fields."""
+    if not isinstance(value, str):
+        return value
+    stripped = value.lstrip()
+    if stripped.startswith(("=", "+", "@", "\t", "\r")) or (
+        stripped.startswith("-") and not stripped[1:2].isdigit()
+    ):
+        return "'" + value
+    return value
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="icu-multimodal-early-warning-agent", description="Icu Multimodal Early Warning Agent")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -84,16 +105,20 @@ def main(argv=None):
             fieldnames = list(reader.fieldnames or [])
             rows = list(reader)
 
-        out_fields = fieldnames + ["overall_urgency", "integrity_status", "total_alerts", "audit_hash"]
+        out_fields = list(dict.fromkeys(fieldnames + ["overall_urgency", "integrity_status", "total_alerts", "audit_hash"]))
         out_rows = []
-        for r in rows:
+        for index, r in enumerate(rows, start=2):
+            try:
+                critical_flag = parse_csv_bool(r.get("is_critical_flag", ""))
+            except ValueError as exc:
+                parser.error(f"CSV row {index}: {exc}")
             payload = SystemTaskPayload(
                 task_id=r.get("task_id", "TASK-01"),
                 target_identifier=r.get("target_identifier", "TARGET-01"),
                 primary_metric=float(r.get("primary_metric", 15.0)),
                 secondary_metric=float(r.get("secondary_metric", 5.0)),
                 status_descriptor=r.get("status_descriptor", "NOMINAL"),
-                is_critical_flag=bool(r.get("is_critical_flag", False)),
+                is_critical_flag=critical_flag,
             )
             dossier = supervisor.process_task(payload)
             row_dict = dict(r)
@@ -101,7 +126,7 @@ def main(argv=None):
             row_dict["integrity_status"] = dossier.integrity_status.value
             row_dict["total_alerts"] = dossier.total_alerts
             row_dict["audit_hash"] = dossier.audit_hash
-            out_rows.append(row_dict)
+            out_rows.append({key: safe_csv_cell(value) for key, value in row_dict.items()})
 
         with open(args.output, mode="w", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=out_fields)

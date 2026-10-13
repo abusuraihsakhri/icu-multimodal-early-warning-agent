@@ -1,0 +1,10 @@
+"use strict";
+const {test}=require("node:test");
+const assert=require("node:assert/strict");
+const {evaluateExample}=require("../web/app.js");
+const x={task_id:"TEST",target_identifier:"SYNTHETIC",primary_metric:20,secondary_metric:3,status_descriptor:"NOMINAL",is_critical_flag:false};
+test("routine",()=>{const r=evaluateExample(x);assert.equal(r.overall_urgency,"ROUTINE");assert.equal(r.total_alerts,0);});
+test("boundaries",()=>assert.equal(evaluateExample({...x,primary_metric:25,secondary_metric:12}).overall_urgency,"ROUTINE"));
+test("primary and descriptor",()=>{const r=evaluateExample({...x,primary_metric:28,status_descriptor:"DISCORDANT"});assert.equal(r.total_alerts,2);assert.equal(r.overall_urgency,"ELEVATED_RISK");});
+test("secondary and critical",()=>{assert.equal(evaluateExample({...x,secondary_metric:13}).overall_urgency,"ELEVATED_RISK");assert.equal(evaluateExample({...x,is_critical_flag:true}).overall_urgency,"CRITICAL_STAT_PANIC");});
+test("invalid numeric inputs",()=>assert.throws(()=>evaluateExample({...x,primary_metric:NaN}),/finite/));
